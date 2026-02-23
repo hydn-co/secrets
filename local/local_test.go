@@ -3,41 +3,52 @@ package local
 import (
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestProvider_GetSecret(t *testing.T) {
+func TestShouldReturnValueWhenEnvSet(t *testing.T) {
+	// Arrange
 	p := Provider{}
+	key := "TEST_SECRET_FOO"
+	want := "my-secret-value"
+	os.Setenv(key, want)
+	t.Cleanup(func() { os.Unsetenv(key) })
 
-	t.Run("returns value when env set", func(t *testing.T) {
-		key := "TEST_SECRET_FOO"
-		want := "my-secret-value"
-		os.Setenv(key, want)
-		t.Cleanup(func() { os.Unsetenv(key) })
+	// Act
+	got, ok := p.GetSecret(key, "vault-name")
 
-		got, ok := p.GetSecret(key, "vault-name")
-		if !ok || got != want {
-			t.Errorf("GetSecret(%q, ...) = %q, %v; want %q, true", key, got, ok, want)
-		}
-	})
+	// Assert
+	require.True(t, ok)
+	assert.Equal(t, want, got)
+}
 
-	t.Run("returns false when env unset", func(t *testing.T) {
-		key := "TEST_SECRET_NEVER_SET_123"
-		os.Unsetenv(key)
+func TestShouldReturnFalseWhenEnvUnset(t *testing.T) {
+	// Arrange
+	p := Provider{}
+	key := "TEST_SECRET_NEVER_SET_123"
+	os.Unsetenv(key)
 
-		got, ok := p.GetSecret(key, "vault-name")
-		if ok || got != "" {
-			t.Errorf("GetSecret(%q, ...) = %q, %v; want \"\", false", key, got, ok)
-		}
-	})
+	// Act
+	got, ok := p.GetSecret(key, "vault-name")
 
-	t.Run("returns false when env empty", func(t *testing.T) {
-		key := "TEST_SECRET_EMPTY"
-		os.Setenv(key, "")
-		t.Cleanup(func() { os.Unsetenv(key) })
+	// Assert
+	require.False(t, ok)
+	assert.Empty(t, got)
+}
 
-		got, ok := p.GetSecret(key, "vault-name")
-		if ok || got != "" {
-			t.Errorf("GetSecret(%q, ...) = %q, %v; want \"\", false", key, got, ok)
-		}
-	})
+func TestShouldReturnFalseWhenEnvEmpty(t *testing.T) {
+	// Arrange
+	p := Provider{}
+	key := "TEST_SECRET_EMPTY"
+	os.Setenv(key, "")
+	t.Cleanup(func() { os.Unsetenv(key) })
+
+	// Act
+	got, ok := p.GetSecret(key, "vault-name")
+
+	// Assert
+	require.False(t, ok)
+	assert.Empty(t, got)
 }

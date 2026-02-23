@@ -18,3 +18,8 @@ func (p *Provider) GetSecret(envKey, vaultName string) (string, bool) {
 	slog.Debug("secrets: AWS backend not implemented", "name", vaultName)
 	return "", false
 }
+
+// SetSecret is a no-op until AWS Secrets Manager support is implemented.
+func (p *Provider) SetSecret(envKey, vaultName, value string) error {
+	return nil
+}

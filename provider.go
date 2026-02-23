@@ -34,6 +34,8 @@ const (
 // vaultName is the name in the vault (e.g. mesh-client-secret). Implementations may use one or both.
 type Provider interface {
 	GetSecret(envKey, vaultName string) (value string, ok bool)
+	// SetSecret stores a secret in the vault (or no-op for local). Used by GetOrCreate when creating a new value.
+	SetSecret(envKey, vaultName, value string) error
 }
 
 var (

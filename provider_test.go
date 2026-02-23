@@ -3,9 +3,11 @@ package secrets
 import (
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestGetBackend(t *testing.T) {
+func TestShouldReturnBackendFromEnv(t *testing.T) {
 	key := EnvSecretsBackend
 	t.Cleanup(func() { os.Unsetenv(key) })
 
@@ -24,15 +26,18 @@ func TestGetBackend(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
 			if tt.env != "" {
 				os.Setenv(key, tt.env)
 			} else {
 				os.Unsetenv(key)
 			}
+
+			// Act
 			got := GetBackend()
-			if got != tt.want {
-				t.Errorf("GetBackend() with %q = %v; want %v", tt.env, got, tt.want)
-			}
+
+			// Assert
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

@@ -2,42 +2,49 @@ package secrets
 
 import (
 	"os"
+	"regexp"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestGetSecret_envWins(t *testing.T) {
-	// Ensure default provider is local so we don't hit Azure/AWS
+func TestShouldReturnEnvValueWhenKeySet(t *testing.T) {
+	// Arrange
 	os.Setenv(EnvSecretsBackend, "local")
 	t.Cleanup(func() {
 		os.Unsetenv(EnvSecretsBackend)
 		os.Unsetenv("TEST_GETSECRET_ENV_KEY")
 	})
-
 	key := "TEST_GETSECRET_ENV_KEY"
 	want := "from-env"
 	os.Setenv(key, want)
 
+	// Act
 	got := GetSecret(key, "vault-name")
-	if got != want {
-		t.Errorf("GetSecret(%q, ...) = %q; want %q", key, got, want)
-	}
+
+	// Assert
+	assert.Equal(t, want, got)
 }
 
-func TestGetSecret_fallsBackWhenUnset(t *testing.T) {
+func TestShouldReturnEmptyWhenKeyUnset(t *testing.T) {
+	// Arrange
 	os.Setenv(EnvSecretsBackend, "local")
 	t.Cleanup(func() {
 		os.Unsetenv(EnvSecretsBackend)
 		os.Unsetenv("TEST_GETSECRET_UNSET_KEY")
 	})
-
 	os.Unsetenv("TEST_GETSECRET_UNSET_KEY")
+
+	// Act
 	got := GetSecret("TEST_GETSECRET_UNSET_KEY", "vault-name")
-	if got != "" {
-		t.Errorf("GetSecret(unset, ...) = %q; want \"\"", got)
-	}
+
+	// Assert
+	assert.Empty(t, got)
 }
 
-func TestMustGetSecret_panicsWhenMissing(t *testing.T) {
+func TestShouldPanicWhenSecretMissing(t *testing.T) {
+	// Arrange
 	os.Setenv(EnvSecretsBackend, "local")
 	t.Cleanup(func() {
 		os.Unsetenv(EnvSecretsBackend)
@@ -45,10 +52,64 @@ func TestMustGetSecret_panicsWhenMissing(t *testing.T) {
 	})
 	os.Unsetenv("TEST_MUSTSECRET_MISSING")
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("MustGetSecret expected to panic")
-		}
-	}()
-	MustGetSecret("TEST_MUSTSECRET_MISSING", "vault-name")
+	// Act & Assert
+	require.Panics(t, func() {
+		MustGetSecret("TEST_MUSTSECRET_MISSING", "vault-name")
+	})
+}
+
+func TestShouldReturnExistingValueWhenGetOrCreateAndKeySet(t *testing.T) {
+	// Arrange
+	os.Setenv(EnvSecretsBackend, "local")
+	key := "TEST_GETORCREATE_EXISTS"
+	os.Setenv(key, "existing-value")
+	t.Cleanup(func() {
+		os.Unsetenv(EnvSecretsBackend)
+		os.Unsetenv(key)
+	})
+
+	// Act
+	got, err := GetOrCreate(key, "vault-name", nil)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "existing-value", got)
+}
+
+func TestShouldReturnHexStringWhenGetOrCreateAndKeyUnsetAndNoGenerator(t *testing.T) {
+	// Arrange
+	os.Setenv(EnvSecretsBackend, "local")
+	key := "TEST_GETORCREATE_MISSING"
+	os.Unsetenv(key)
+	t.Cleanup(func() {
+		os.Unsetenv(EnvSecretsBackend)
+		os.Unsetenv(key)
+	})
+
+	// Act
+	got, err := GetOrCreate(key, "vault-name", nil)
+
+	// Assert
+	require.NoError(t, err)
+	require.Len(t, got, 64, "expected 32-byte hex (64 chars)")
+	assert.Regexp(t, regexp.MustCompile(`^[0-9a-f]{64}$`), got)
+}
+
+func TestShouldReturnGeneratedValueWhenGetOrCreateAndKeyUnsetAndGeneratorProvided(t *testing.T) {
+	// Arrange
+	os.Setenv(EnvSecretsBackend, "local")
+	key := "TEST_GETORCREATE_GEN"
+	os.Unsetenv(key)
+	t.Cleanup(func() {
+		os.Unsetenv(EnvSecretsBackend)
+		os.Unsetenv(key)
+	})
+	gen := func() string { return "custom-generated" }
+
+	// Act
+	got, err := GetOrCreate(key, "vault-name", gen)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "custom-generated", got)
 }

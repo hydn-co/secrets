@@ -1,7 +1,9 @@
 // Package local provides a secrets provider that reads only from the process environment.
 package local
 
-import "os"
+import (
+	"os"
+)
 
 // Provider reads secrets from environment variables (envKey). vaultName is ignored.
 type Provider struct{}
@@ -13,4 +15,9 @@ func (Provider) GetSecret(envKey, vaultName string) (string, bool) {
 		return "", false
 	}
 	return v, true
+}
+
+// SetSecret is a no-op for the local provider (no vault to write to).
+func (Provider) SetSecret(envKey, vaultName, value string) error {
+	return nil
 }

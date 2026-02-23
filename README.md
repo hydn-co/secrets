@@ -20,6 +20,12 @@ id := secrets.GetSecret("MESH_CLIENT_ID", "mesh-client-id")
 
 // panic if the secret is missing (useful during initialization)
 secret := secrets.MustGetSecret("JWT_SECRET", "jwt-secret")
+
+// get existing secret or create one if missing; new value is saved to the vault (nil gen = 32-byte hex)
+apiKey, err := secrets.GetOrCreate("API_KEY", "api-key", nil)
+if err != nil {
+	// handle vault write failure (e.g. permission denied)
+}
 ```
 
 You can also work directly with a specific provider:
@@ -39,17 +45,19 @@ All providers implement:
 
 ```go
 GetSecret(envKey, vaultName string) (value string, ok bool)
+SetSecret(envKey, vaultName, value string) error
 ```
 
 | Package             | Behavior                                                |
 |---------------------|---------------------------------------------------------|
-| `secrets/local`     | Environment only (key = `envKey`).                      |
+| `secrets/local`     | Environment only (key = `envKey`). SetSecret is a no-op.|
 | `secrets/azure`     | Azure Key Vault; uses `vaultName` and DefaultCredential.|
 | `secrets/aws`       | Placeholder; not implemented yet.                       |
 
-The root-level helpers (`GetSecret`, `MustGetSecret`) try the environment
+The root-level helpers (`GetSecret`, `MustGetSecret`, `GetOrCreate`) try the environment
 first and fall back to `DefaultProvider()` which is chosen via
-`SECRETS_BACKEND`.
+`SECRETS_BACKEND`. `GetOrCreate` returns an existing value or, if missing, generates one
+(using a generator or 32-byte hex when `gen` is nil), **saves it to the vault**, and returns it.
 
 ---
 

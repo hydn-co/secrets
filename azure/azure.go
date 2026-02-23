@@ -47,6 +47,20 @@ func (p *Provider) GetSecret(envKey, vaultName string) (string, bool) {
 	return *resp.Value, true
 }
 
+// SetSecret stores the secret in Azure Key Vault under vaultName.
+func (p *Provider) SetSecret(envKey, vaultName, value string) error {
+	if p.vaultURL == "" {
+		return nil
+	}
+	client, err := p.clientForVault()
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	_, err = client.SetSecret(ctx, vaultName, azsecrets.SetSecretParameters{Value: &value}, nil)
+	return err
+}
+
 func (p *Provider) clientForVault() (*azsecrets.Client, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
