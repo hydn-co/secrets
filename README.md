@@ -1,18 +1,28 @@
-# github.com/hydn-co/secrets
+# Secrets
 
-Load secrets from **env first**, then from a vault (Azure or AWS). One or two env vars in deployment; no need to wire every secret in Bicep.
+A lightweight Go helper for loading secrets with the following priority:
+1. **Environment variables**
+2. **Secret store** (Azure Key Vault, AWS, etc.)
 
-## Usage
+The intent is to minimize configuration surface in deployments (often just
+`SECRETS_BACKEND` and a vault URL) and avoid wiring every secret through
+infrastructure code such as Bicep.
+
+---
+
+## Quick start
 
 ```go
 import "github.com/hydn-co/secrets"
 
-// Env wins; if unset, default provider (SECRETS_BACKEND) is used
+// lookup a value; env wins, otherwise the configured backend is used
 id := secrets.GetSecret("MESH_CLIENT_ID", "mesh-client-id")
-secret := secrets.MustGetSecret("JWT_SECRET", "jwt-secret") // panics if missing
+
+// panic if the secret is missing (useful during initialization)
+secret := secrets.MustGetSecret("JWT_SECRET", "jwt-secret")
 ```
 
-Use a provider directly:
+You can also work directly with a specific provider:
 
 ```go
 import "github.com/hydn-co/secrets/azure"
@@ -21,27 +31,66 @@ p := azure.NewProvider("https://myvault.vault.azure.net/")
 val, ok := p.GetSecret("", "my-secret-name")
 ```
 
+---
+
 ## Provider interface
 
-`GetSecret(envKey, vaultName string) (value string, ok bool)`
+All providers implement:
 
-| Package | Behavior |
-|---------|----------|
-| `secrets/local` | Env only (`envKey`). |
-| `secrets/azure` | Key Vault by `vaultName`; DefaultAzureCredential. |
-| `secrets/aws` | Stub (not implemented). |
+```go
+GetSecret(envKey, vaultName string) (value string, ok bool)
+```
 
-Root `GetSecret`/`MustGetSecret`: env first, then `DefaultProvider()` from `SECRETS_BACKEND`.
+| Package             | Behavior                                                |
+|---------------------|---------------------------------------------------------|
+| `secrets/local`     | Environment only (key = `envKey`).                      |
+| `secrets/azure`     | Azure Key Vault; uses `vaultName` and DefaultCredential.|
+| `secrets/aws`       | Placeholder; not implemented yet.                       |
 
-## Env vars
+The root-level helpers (`GetSecret`, `MustGetSecret`) try the environment
+first and fall back to `DefaultProvider()` which is chosen via
+`SECRETS_BACKEND`.
 
-| Variable | Description |
-|----------|-------------|
-| `SECRETS_BACKEND` | `local` (default), `azure`, or `aws`. |
-| `AZURE_KEY_VAULT_URL` | Vault URL when backend is `azure`. App identity needs Key Vault Secrets User. |
+---
+
+## Configuration
+
+Environment variables recognized by the library:
+
+| Variable             | Description                                                                 |
+|----------------------|-----------------------------------------------------------------------------|
+| `SECRETS_BACKEND`    | `local` (default), `azure`, or `aws`. Determines the default provider.       |
+| `AZURE_KEY_VAULT_URL`| Required when backend is `azure`; set to the vault URI.                    |
+
+Additional provider-specific settings (e.g. AWS region) may be added in
+future releases.
+
+---
 
 ## Requirements
 
-Go 1.21+. Azure: `azidentity` + `azsecrets`. AWS: not implemented.
+- Go **1.21 or newer**
+- For Azure support: modules `github.com/Azure/azure-sdk-for-go/sdk/azidentity`
+  and `.../sdk/keyvault/azsecrets`
+- AWS support is currently a stub and must be implemented if needed
 
-**Monorepo:** In consumer `go.mod`, `replace github.com/hydn-co/secrets => ../secrets`.
+
+> **Monorepo tip:**
+> in a consuming project’s `go.mod`, add a replace directive:
+>
+> ```go
+> replace github.com/hydn-co/secrets => ../secrets
+> ```
+
+---
+
+## Contributing
+
+Contributions are welcome! Please open an issue or pull request for
+new providers, bug fixes, or improvements.
+
+---
+
+## License
+
+[MIT](LICENSE) (or whichever license is intended).
