@@ -4,6 +4,7 @@
 // Environment variables (used by the default loader):
 //   - SECRETS_BACKEND: local | azure | aws (default: local)
 //   - AZURE_KEY_VAULT_URL: vault URL when backend is azure (e.g. https://myvault.vault.azure.net/)
+//   - AZURE_CLIENT_ID: optional; when set, pins Azure auth to this managed identity client ID
 package secrets
 
 import (
