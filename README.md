@@ -101,4 +101,4 @@ new providers, bug fixes, or improvements.
 
 ## License
 
-[MIT](LICENSE) (or whichever license is intended).
+[Apache-2.0](LICENSE)
