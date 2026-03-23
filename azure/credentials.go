@@ -5,7 +5,6 @@ package azure
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -137,7 +136,6 @@ func (c *managedIdentityCredential) getToken(ctx context.Context) (string, error
 
 	c.tokenExpiry = time.Unix(expiresOn, 0)
 	c.token = tokenResp.AccessToken
-	logKeyVaultJWTClaims(c.token, endpointType)
 	return c.token, nil
 }
 
@@ -145,31 +143,4 @@ func (c *managedIdentityCredential) invalidate() {
 	c.mu.Lock()
 	c.token = ""
 	c.mu.Unlock()
-}
-
-func logKeyVaultJWTClaims(token, endpointType string) {
-	parts := strings.SplitN(token, ".", 3)
-	if len(parts) < 2 {
-		return
-	}
-	payload := parts[1]
-	switch len(payload) % 4 {
-	case 2:
-		payload += "=="
-	case 3:
-		payload += "="
-	}
-	decoded, err := base64.URLEncoding.DecodeString(payload)
-	if err != nil {
-		return
-	}
-	var claims map[string]interface{}
-	if json.Unmarshal(decoded, &claims) != nil {
-		return
-	}
-	aud, _ := claims["aud"].(string)
-	expectedAud := "https://vault.azure.net"
-	if aud != "" && aud != expectedAud && aud != expectedAud+"/" {
-		slog.Warn("secrets: Azure token audience mismatch (Key Vault)", "got", aud, "expected", expectedAud, "endpoint_type", endpointType)
-	}
 }
